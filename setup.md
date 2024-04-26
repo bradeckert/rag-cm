@@ -37,6 +37,8 @@ pip install "uvicorn[standard]"
 
 conda env export --no-build > environment.yml
 
+python ingest.py
+
 conda deactivate 
 conda remove --name rag --all
 ```

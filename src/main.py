@@ -6,7 +6,13 @@ from contextlib import asynccontextmanager
 #import asyncio
 # import aiosqlite
 import sqlite3
-from fastapi import FastAPI, HTTPException # Depends, 
+from fastapi import FastAPI, HTTPException, Form, Request, UploadFile, File
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List
 import time
 from typing import Any, Union
 # import db
@@ -20,6 +26,8 @@ from constants import (
     # INDEX_PATH_RAGA
 )
 from dbcollection import (open_sqlite_db, sql_index_and_parameter_marks, sql_add_index_to_params, DbCollection)
+
+
 
 # We make our main connection readonly, so it can be reused accross multiple threads
 con_readonly: sqlite3.Connection = open_sqlite_db(DB_FILE_PATH, readonly=True)
@@ -50,6 +58,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+import os
+
+# Get the absolute path to the directory where main.py is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Mount the directory containing index.html as a static directory
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
 
 # asyncdb_connections: list[aiosqlite.Connection] = []
 
@@ -70,9 +86,11 @@ app = FastAPI(lifespan=lifespan)
 #     finally:
 #         await db.close()
 
+
+
 @app.get("/")
-def root() -> dict[str, str]:
-    return {"message": "Hello World"}
+async def main():
+    return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, int | Any]:
@@ -103,7 +121,7 @@ async def statictest() -> Any | list[Any]:
     return "Hi this is a static result"
 
 @app.get("/openaitest")
-async def statictest() -> Any | list[Any]:
+async def openaitest() -> Any | list[Any]:
     import os
     from openai import OpenAI
     from dotenv import load_dotenv , find_dotenv
@@ -194,3 +212,41 @@ def add_item(item_name: str, quantity: int) -> dict[str, str]:
 
 #     return {"item": grocery_list[item_id]}
     return {"message": "OK"}
+
+class MaintenanceRequest(BaseModel):
+    first_name: str
+    last_name: str
+    contact_number: str
+    email: EmailStr
+    street_address: str
+    street_address_line_2: Optional[str] = None
+    city: str
+    state_province: str
+    postal_zip_code: str
+    problem_description: str
+    preferred_date_of_service: str
+
+@app.post("/submit-form/")
+async def submit_form(  first_name: str = Form(...),
+    last_name: str = Form(...),
+    contact_number: str = Form(...),
+    email: str = Form(...),
+    street_address: str = Form(...),
+    street_address_line_2: Optional[str] = Form(None),
+    city: str = Form(...),
+    state_province: str = Form(...),
+    postal_zip_code: str = Form(...),
+    problem_description: str = Form(...),
+    preferred_date_of_service: str = Form(...),
+    files: list[UploadFile] = []
+    # files: Optional[List[UploadFile]] = File(default=None)  BROKEN in current fastapi https://github.com/tiangolo/fastapi/discussions/10280
+    ):
+    file_list = []
+    if files:
+        for f in files:
+            file_list.append(f.filename)
+
+
+    # Here you would handle the form data, e.g., save to a database.
+    # For the files, you can save them to the disk or handle as needed.
+    return {"message": "Form submitted successfully!"}
