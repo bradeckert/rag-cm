@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 import markdown
+import base64
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -246,13 +247,15 @@ class MaintenanceRequest(BaseModel):
         )
 
         if files:
-            query += "The user has also provided a photo of the issue, please examine it for more detail and for dimensions of the problem.\n"
+            query += "The user has also provided visual content of the issue, please examine it for more detail and for dimensions of the problem.\n"
             #TODO multiple files?
 
         return query
 
 
-
+async def encode_file_to_base64(file: UploadFile):
+    contents = await file.read()  # Read the contents of the file
+    return base64.b64encode(contents).decode('utf-8')  # Encode as base64 and convert bytes to string
 
 @app.post("/submit-form/")
 async def submit_form(  
@@ -273,7 +276,7 @@ async def submit_form(
     file_list = []
     if files:
         for f in files:
-            file_list.append(f.filename)
+            file_list.append(f)
 
     maintenanceRequest = MaintenanceRequest(first_name=first_name, last_name=last_name, contact_number=contact_number, email=email, street_address=street_address,
                                             street_address_line_2=street_address_line_2, city=city, state_province=state_province, postal_zip_code=postal_zip_code,
@@ -291,15 +294,35 @@ async def submit_form(
     )
 
     start_time = time.time()
+
+    msg_content: List[Any] = [
+                    {
+                        "type": "text",
+                        "text": maintenanceRequest.create_openai_query(files=file_list),
+                    },
+                ]
+    if file_list:
+        for f in file_list:
+            base64_image = await encode_file_to_base64(f)
+            # print(base64_image)
+
+            msg_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}"
+                }
+            })
+
+
     chat_completion = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
-                "content": maintenanceRequest.create_openai_query(files=file_list),
+                "content": msg_content
             }
         ],
         # model="gpt-3.5-turbo",
-        model="gpt-4-turbo-preview",
+        model="gpt-4-turbo",
     )
     elapsed_time = (time.time() - start_time)
     print(elapsed_time)
