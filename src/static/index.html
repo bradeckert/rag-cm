@@ -50,6 +50,8 @@
     
         <button type="submit">Submit</button>
     </form>
+
+    <div id="server-response"></div>
     
     <script>
         document.getElementById('maintenance-form').addEventListener('submit', function(event) {
@@ -75,9 +77,25 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => response.text())
+            .then(html => {
+                // Insert the HTML response into the server-response div
+                const responseDiv = document.getElementById('server-response');
+                responseDiv.innerHTML = html;
+                responseDiv.style.display = 'block'; // Show the response div
+
+                // hide form
+                document.getElementById('maintenance-form').hidden = true;
+            })
             .then(data => console.log(data))
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                const responseDiv = document.getElementById('server-response');
+                responseDiv.innerHTML = '<p>There was an error processing your request.</p>';
+                responseDiv.style.display = 'block';
+                responseDiv.style.background = '#f2dede';
+                responseDiv.style.color = '#a94442';
+            });        
         });
     </script>
 </body>

@@ -225,9 +225,37 @@ class MaintenanceRequest(BaseModel):
     postal_zip_code: str
     problem_description: str
     preferred_date_of_service: str
+    
+    def create_openai_query(self, files:list[Any]) -> str:
+        query = (
+            "A user has reported an issue with their home that needs repair. "
+            "You are a digital property manager called HomeHelper working for the user. Your job is to get them a quote that they can sign off on. "
+            "Take all the info given, and create the package you would send out to the home service provider that would fix the issue. "
+            "You will include what type of service provider is needed, for example 'HVAC repair' or 'painter', "
+            "and then detail the work that needs to be done, the approximate dimensions of the issue, "
+            "the estimated hours of work it will take, and the estimated cost. "
+            "Format this into a nice looking quote package that you could send to that home service provider if approved.\n\n"
+            "User information: \n"
+            f"Name: {self.first_name} {self.last_name}\n"
+            f"Contact phone number: {self.contact_number}\n"
+            f"Email address: {self.email}\n"
+            f"Address: {self.street_address}\n{self.street_address_line_2}\n{self.city}, {self.state_province} {self.postal_zip_code}\n\n"
+            f"Here is a quick description of the problem provided by the user:\n{self.problem_description}\n"
+            f"The user has also stated that their preferred date of service for the provider to come to their home is: {self.preferred_date_of_service}\n"
+        )
+
+        if files:
+            query += "The user has also provided a photo of the issue, please examine it for more detail and for dimensions of the problem.\n"
+            #TODO multiple files?
+
+        return query
+
+
+
 
 @app.post("/submit-form/")
-async def submit_form(  first_name: str = Form(...),
+async def submit_form(  
+    first_name: str = Form(...),
     last_name: str = Form(...),
     contact_number: str = Form(...),
     email: str = Form(...),
@@ -245,6 +273,36 @@ async def submit_form(  first_name: str = Form(...),
     if files:
         for f in files:
             file_list.append(f.filename)
+
+    maintenanceRequest = MaintenanceRequest(first_name=first_name, last_name=last_name, contact_number=contact_number, email=email, street_address=street_address,
+                                            street_address_line_2=street_address_line_2, city=city, state_province=state_province, postal_zip_code=postal_zip_code,
+                                            problem_description=problem_description, preferred_date_of_service=preferred_date_of_service)
+
+    # send request to openAI
+    import os
+    from openai import OpenAI
+    from dotenv import load_dotenv , find_dotenv
+    _ = load_dotenv(find_dotenv())
+
+    client = OpenAI(
+        # This is the default and can be omitted
+        api_key=os.environ.get("OPEN_AI_API_KEY"),
+    )
+
+    start_time = time.time()
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {
+                "role": "user",
+                "content": maintenanceRequest.create_openai_query(files=file_list),
+            }
+        ],
+        model="gpt-3.5-turbo",
+    )
+    elapsed_time = (time.time() - start_time)
+    print(elapsed_time)
+    print(chat_completion.choices[0].message.content)
+    return chat_completion.choices[0].message.content.replace("\n", "<br>")
 
 
     # Here you would handle the form data, e.g., save to a database.
