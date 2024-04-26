@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Form, Request, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+import markdown
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -297,12 +298,13 @@ async def submit_form(
                 "content": maintenanceRequest.create_openai_query(files=file_list),
             }
         ],
-        model="gpt-3.5-turbo",
+        # model="gpt-3.5-turbo",
+        model="gpt-4-turbo-preview",
     )
     elapsed_time = (time.time() - start_time)
     print(elapsed_time)
     print(chat_completion.choices[0].message.content)
-    return chat_completion.choices[0].message.content.replace("\n", "<br>")
+    return markdown.markdown(chat_completion.choices[0].message.content.replace("\n", "<br>"))
 
 
     # Here you would handle the form data, e.g., save to a database.
