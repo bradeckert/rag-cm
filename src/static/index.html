@@ -51,13 +51,25 @@
         <button type="submit">Generate Quote Package</button>
     </form>
 
+    <div class="loader" id="loader"></div> <!-- Loading spinner -->
+
     <div id="server-response"></div>
     
     <script>
-        document.getElementById('maintenance-form').addEventListener('submit', function(event) {
+        const form = document.getElementById('maintenance-form');
+        const loader = document.getElementById('loader');
+        const responseDiv = document.getElementById('server-response');
+
+        form.addEventListener('submit', function(event) {
             event.preventDefault();
             const formData = new FormData(this);
     
+            loader.style.display = 'block';
+            responseDiv.style.display = 'none'; // Hide previous responses
+
+            // hide form
+            form.hidden = true;
+
             // Get the file input
             const fileInput = document.querySelector('input[type="file"]');
 
@@ -79,19 +91,16 @@
             })
             .then(response => response.text())
             .then(html => {
-                // Insert the HTML response into the server-response div
-                const responseDiv = document.getElementById('server-response');
+                loader.style.display = 'none'; // Hide loader
                 responseDiv.innerHTML = html;
-                responseDiv.style.display = 'block'; // Show the response div
+                responseDiv.style.display = 'block'; // Show response
 
-                // hide form
-                document.getElementById('maintenance-form').hidden = true;
             })
             .then(data => console.log(data))
             .catch(error => {
                 console.error('Error:', error);
-                const responseDiv = document.getElementById('server-response');
                 responseDiv.innerHTML = '<p>There was an error processing your request.</p>';
+                loader.style.display = 'none'; // Hide loader
                 responseDiv.style.display = 'block';
                 responseDiv.style.background = '#f2dede';
                 responseDiv.style.color = '#a94442';

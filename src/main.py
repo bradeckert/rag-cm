@@ -327,7 +327,7 @@ async def submit_form(
     elapsed_time = (time.time() - start_time)
     print(elapsed_time)
     print(chat_completion.choices[0].message.content)
-    return markdown.markdown(chat_completion.choices[0].message.content.replace("\n", "<br>"))
+    return markdown.markdown(chat_completion.choices[0].message.content.replace("\n", "<br>")) # type: ignore
 
 
     # Here you would handle the form data, e.g., save to a database.
